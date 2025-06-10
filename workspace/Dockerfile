@@ -48,11 +48,17 @@ ARG PGID=1000
 ENV PGID ${PGID}
 
 # always run apt update when start and after add new source list, then clean up at end.
+# RUN set -xe; \
+#     apt-get update -yqq && \
+#     pecl channel-update pecl.php.net && \
+#     (groupadd -g ${PGID} laradock || true) && \
+#     useradd -l -u ${PUID} -g laradock -m laradock -G docker_env && \
+#     usermod -p "*" laradock -s /bin/bash && \
 RUN set -xe; \
     apt-get update -yqq && \
     pecl channel-update pecl.php.net && \
-    groupadd -g ${PGID} laradock && \
-    useradd -l -u ${PUID} -g laradock -m laradock -G docker_env && \
+    (groupadd -g ${PGID} laradock || true) && \
+    (useradd -l -u ${PUID} -g laradock -m laradock -G docker_env || true) && \
     usermod -p "*" laradock -s /bin/bash && \
     apt-get install -yqq \
       apt-utils \
