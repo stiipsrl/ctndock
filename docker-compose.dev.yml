@@ -6,8 +6,6 @@ networks:
 volumes:
   mysql:
     driver: ${VOLUMES_DRIVER}
-  mssql:
-    driver: ${VOLUMES_DRIVER}
   phpmyadmin:
     driver: ${VOLUMES_DRIVER}
   docker-in-docker:
