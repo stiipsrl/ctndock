@@ -1149,8 +1149,13 @@ RUN set -eux; \
       #  The following steps were taken from
       #  https://github.com/Microsoft/msphpsql/wiki/Install-and-configuration
       ###########################################################################
-      curl https://packages.microsoft.com/keys/microsoft.asc | apt-key add - && \
-      curl https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list > /etc/apt/sources.list.d/mssql-release.list && \
+      # Install prerequisites
+      apt-get update && apt-get install -y gnupg2 curl lsb-release && \
+      # Add Microsoft GPG key the new way (for Ubuntu 24.04)
+      curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o /usr/share/keyrings/microsoft-prod.gpg && \
+      # Add Microsoft Ubuntu repository with signed-by option
+      echo "deb [arch=amd64,arm64,armhf signed-by=/usr/share/keyrings/microsoft-prod.gpg] https://packages.microsoft.com/ubuntu/$(lsb_release -rs)/prod $(lsb_release -cs) main" | tee /etc/apt/sources.list.d/mssql-release.list && \
+      # Update with signed repository
       apt-get update -yqq && \
       ACCEPT_EULA=Y apt-get install -yqq msodbcsql18 mssql-tools18 unixodbc unixodbc-dev libgss3 odbcinst locales && \
       ln -sfn /opt/mssql-tools/bin/sqlcmd /usr/bin/sqlcmd && \
