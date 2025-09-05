@@ -23,11 +23,12 @@ help: ## Show this help message
 	@echo "Examples:"
 	@echo "  make up        # Start containers"
 	@echo "  make shell     # Enter workspace container"
-	@echo "  make artisan   # Run artisan commands"
+	@echo "  make serve     # Start Laravel server"
+	@echo "  make yarn-dev  # Start Vite dev server"
 
 # Container Management
 .PHONY: up
-up: ## Start workspace and nginx containers
+up: ## Start workspace container
 	$(COMPOSE) up -d
 
 .PHONY: down
@@ -76,10 +77,6 @@ logs: ## Show all container logs
 logs-workspace: ## Show workspace logs
 	$(COMPOSE) logs -f workspace
 
-.PHONY: logs-nginx
-logs-nginx: ## Show nginx logs
-	$(COMPOSE) logs -f nginx
-
 # Laravel Commands
 .PHONY: artisan
 artisan: ## Run artisan command (usage: make artisan cmd="migrate")
@@ -87,7 +84,16 @@ artisan: ## Run artisan command (usage: make artisan cmd="migrate")
 
 .PHONY: serve
 serve: ## Start Laravel development server
-	$(COMPOSE) exec --user=$(WORKSPACE_USER) workspace php artisan serve --host=0.0.0.0 --port=8000
+	@echo "Starting Laravel server on port 8002..."
+	$(COMPOSE) exec -d --user=$(WORKSPACE_USER) workspace php artisan serve --host=0.0.0.0 --port=8000
+	@sleep 2
+	@echo "Laravel should be running on http://localhost:8002"
+
+.PHONY: serve-stop
+serve-stop: ## Stop Laravel development server
+	@echo "Stopping Laravel server..."
+	$(COMPOSE) exec --user=$(WORKSPACE_USER) workspace bash -c "pkill -f 'artisan serve' || true"
+	@echo "Laravel server stopped"
 
 .PHONY: migrate
 migrate: ## Run database migrations
@@ -133,26 +139,38 @@ composer-update: ## Update composer dependencies
 composer-dump: ## Dump composer autoload
 	$(COMPOSE) exec --user=$(WORKSPACE_USER) workspace composer dump-autoload
 
-# NPM Commands
-.PHONY: npm
-npm: ## Run npm command (usage: make npm cmd="install")
-	$(COMPOSE) exec --user=$(WORKSPACE_USER) workspace npm $(cmd)
+# Yarn Commands
+.PHONY: yarn
+yarn: ## Run yarn command (usage: make yarn cmd="install")
+	$(COMPOSE) exec --user=$(WORKSPACE_USER) workspace yarn $(cmd)
 
-.PHONY: npm-install
-npm-install: ## Install npm dependencies
-	$(COMPOSE) exec --user=$(WORKSPACE_USER) workspace npm install
+.PHONY: yarn-install
+yarn-install: ## Install yarn dependencies
+	$(COMPOSE) exec --user=$(WORKSPACE_USER) workspace yarn install
 
-.PHONY: npm-dev
-npm-dev: ## Start Vite development server
-	$(COMPOSE) exec --user=$(WORKSPACE_USER) workspace npm run dev
+.PHONY: yarn-dev
+yarn-dev: ## Start Vite development server
+	@echo "Cleaning up old hot file..."
+	@rm -f ../public/hot
+	@echo "Starting Vite on port 5174..."
+	$(COMPOSE) exec -d --user=$(WORKSPACE_USER) -e VITE_PORT=5174 workspace yarn dev
+	@sleep 3
+	@echo "Vite should be accessible on http://localhost:5174"
 
-.PHONY: npm-build
-npm-build: ## Build assets for production
-	$(COMPOSE) exec --user=$(WORKSPACE_USER) workspace npm run build
+.PHONY: yarn-build
+yarn-build: ## Build assets for production
+	$(COMPOSE) exec --user=$(WORKSPACE_USER) workspace yarn build
 
-.PHONY: npm-watch
-npm-watch: ## Watch for asset changes
-	$(COMPOSE) exec --user=$(WORKSPACE_USER) workspace npm run watch
+.PHONY: yarn-watch
+yarn-watch: ## Watch for asset changes
+	$(COMPOSE) exec --user=$(WORKSPACE_USER) workspace yarn watch
+
+.PHONY: yarn-stop
+yarn-stop: ## Stop Vite development server
+	@echo "Stopping Vite..."
+	$(COMPOSE) exec --user=$(WORKSPACE_USER) workspace bash -c "pkill -f 'vite' || true"
+	@rm -f ../public/hot
+	@echo "Vite stopped"
 
 # Testing
 .PHONY: test
@@ -175,7 +193,6 @@ status: ## Show container status and ports
 	@echo ""
 	@echo "Access URLs:"
 	@echo "  Laravel (artisan serve): http://localhost:8002"
-	@echo "  Laravel (nginx):         http://localhost:8082"
 	@echo "  Vite:                    http://localhost:5174"
 	@echo "  SSH:                     ssh laradock@localhost -p 2223"
 
@@ -186,8 +203,6 @@ ports: ## Show port mappings
 	@echo "Laravel:     8002 -> 8000"
 	@echo "Vite:        5174 -> 5173"
 	@echo "SSH:         2223 -> 22"
-	@echo "Nginx HTTP:  8082 -> 80"
-	@echo "Nginx HTTPS: 8444 -> 443"
 
 # Cleanup
 .PHONY: clean
